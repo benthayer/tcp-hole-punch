@@ -1,0 +1,13 @@
+{
+  "include": ["*.py"],
+  "stubPath": "./stubs",
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.11",
+  "reportMissingTypeStubs": false,
+  "reportMissingModuleSource": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownParameterType": false
+}
+
