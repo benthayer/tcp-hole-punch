@@ -14,6 +14,16 @@ type Someone = {
 
 const boopMap: Map<WebSocket, Someone> = new Map()
 
+app.get("/reset", (req, res) => {
+  const count = boopMap.size;
+  for (const ws of boopMap.keys()) {
+    ws.close();
+  }
+  boopMap.clear();
+  console.log(`Reset! Cleared ${count} pending boopers.`);
+  res.json({ cleared: count });
+});
+
 function boop() {
     if (boopMap.size <= 1) return;
     for (const outerBooper of boopMap.keys()) {
