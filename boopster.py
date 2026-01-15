@@ -10,42 +10,58 @@ import websockets
 import asyncio
 import json
 from typing import TypedDict, Any
+import ssl
+import http.client
+    
 
 class Booper(TypedDict):
     ip: str
     port: int
 
-def gather_booping_materials() -> tuple[socket.socket, int]:
+def bind_port(port: int) -> tuple[socket.socket, int]:
     # Address family internet, TCP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     # Accept connections from anywhere, get a port
-    sock.bind(('0.0.0.0', 0))
+    sock.bind(('0.0.0.0', port))
     # Our local port, basically irrelevant to anyone but us
     local_port = sock.getsockname()[1]
     return sock, local_port
+
+def gather_booping_materials() -> tuple[socket.socket, int]:
+    return bind_port(0)
 
 RANDY_WS = "wss://holepunch.apps.benthayer.com/"
 RANDY_HOST = "holepunch.apps.benthayer.com"
 RANDY_PORT = 443
 
-def identity_crisis(sock: socket.socket) -> tuple[str, int]:
-    # Raw HTTPS is hard, let's use the stdlib
-    import ssl
-    import http.client
-    
-    local_port = sock.getsockname()[1]
-    sock.close()  # Release the port
-    
-    # Create SSL connection from same port
-    conn = http.client.HTTPSConnection(RANDY_HOST, RANDY_PORT, source_address=('0.0.0.0', local_port))
-    conn.request("GET", "/randypleasehelpwhoami")
+def connect_ssl(sock: socket.socket, host: str, port: int) -> ssl.SSLSocket:
+    sock.connect((host, port))
+    context = ssl.create_default_context()
+    return context.wrap_socket(sock, server_hostname=host)
+
+def http_get(ssl_sock: ssl.SSLSocket, host: str, path: str) -> Booper:
+    conn = http.client.HTTPSConnection(host)
+    conn.sock = ssl_sock
+    conn.request("GET", path)
     response = conn.getresponse()
     data = json.loads(response.read())
     conn.close()
+    return data
+
+def ask_randy_who_am_i(local_port: int) -> Booper:
+    sock, _ = bind_port(local_port)
+    ssl_sock = connect_ssl(sock, RANDY_HOST, RANDY_PORT)
+    return http_get(ssl_sock, RANDY_HOST, "/randypleasehelpwhoami")
+
+def identity_crisis(sock: socket.socket) -> tuple[str, int]:
+    local_port = sock.getsockname()[1]
+    sock.close()
     
-    print(f"I am {data['ip']}:{data['port']}")
-    return data['ip'], data['port']
+    identity = ask_randy_who_am_i(local_port)
+    print(f"I am {identity['ip']}:{identity['port']}")
+    return identity['ip'], identity['port']
 
 
 async def call_randy(external_ip: str, external_port: int) -> Any:
@@ -90,13 +106,7 @@ async def main() -> None:
     sock, local_port = gather_booping_materials()
     external_ip, external_port = identity_crisis(sock)  # closes sock
     
-    # Rebind to same port for hole punch
-    import time
-    time.sleep(0.1)  # Let the port fully release
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-    sock.bind(('0.0.0.0', local_port))
+    sock, local_port = bind_port(local_port)
     
     ws = await call_randy(external_ip, external_port)
     other_booper = await wait_for_boop_signal(ws)
