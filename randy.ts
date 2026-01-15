@@ -14,7 +14,14 @@ type Someone = {
 
 const boopMap: Map<WebSocket, Someone> = new Map()
 
-app.get("/reset", (req, res) => {
+app.get("/randypleasehelpwhoami", (req, res) => {
+  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket.remoteAddress?.replace("::ffff:", "") || "unknown";
+  const port = parseInt(req.headers["x-forwarded-port"] as string) || req.socket.remotePort || 0;
+  console.log(`Identity check: ${ip}:${port}`);
+  res.json({ ip, port });
+});
+
+app.get("/randystopweneedtostartover", (req, res) => {
   const count = boopMap.size;
   for (const ws of boopMap.keys()) {
     ws.close();

@@ -6,7 +6,6 @@ from __future__ import annotations
 # Step 4: Boop
 
 import socket
-import stun
 import websockets
 import asyncio
 import json
@@ -25,17 +24,32 @@ def gather_booping_materials() -> tuple[socket.socket, int]:
     local_port = sock.getsockname()[1]
     return sock, local_port
 
-RANDY = "wss://holepunch.apps.benthayer.com/"
+RANDY_WS = "wss://holepunch.apps.benthayer.com/"
+RANDY_HOST = "holepunch.apps.benthayer.com"
+RANDY_PORT = 443
 
-def identity_crisis(local_port: int) -> tuple[str, int]:
-    _nat_type, external_ip, external_port = stun.get_ip_info(source_port=local_port)
-    print(f"I am {external_ip}:{external_port}")
-    return external_ip, external_port
+def identity_crisis(sock: socket.socket) -> tuple[str, int]:
+    # Raw HTTPS is hard, let's use the stdlib
+    import ssl
+    import http.client
+    
+    local_port = sock.getsockname()[1]
+    sock.close()  # Release the port
+    
+    # Create SSL connection from same port
+    conn = http.client.HTTPSConnection(RANDY_HOST, RANDY_PORT, source_address=('0.0.0.0', local_port))
+    conn.request("GET", "/randypleasehelpwhoami")
+    response = conn.getresponse()
+    data = json.loads(response.read())
+    conn.close()
+    
+    print(f"I am {data['ip']}:{data['port']}")
+    return data['ip'], data['port']
 
 
 async def call_randy(external_ip: str, external_port: int) -> Any:
     print(f"Connecting to Randy...")
-    ws = await websockets.connect(RANDY)
+    ws = await websockets.connect(RANDY_WS)
     await ws.send(json.dumps({"ip": external_ip, "port": external_port}))
     print("Waiting for peer...")
     return ws
@@ -73,7 +87,13 @@ async def commence_booping(sock: socket.socket, other_booper: Booper) -> None:
 
 async def main() -> None:
     sock, local_port = gather_booping_materials()
-    external_ip, external_port = identity_crisis(local_port)
+    external_ip, external_port = identity_crisis(sock)  # closes sock
+    
+    # Rebind to same port for hole punch
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('0.0.0.0', local_port))
+    
     ws = await call_randy(external_ip, external_port)
     other_booper = await wait_for_boop_signal(ws)
     await commence_booping(sock, other_booper)
