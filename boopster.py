@@ -29,22 +29,18 @@ RANDY = "wss://holepunch.apps.benthayer.com/"
 
 def identity_crisis(local_port: int) -> tuple[str, int]:
     _nat_type, external_ip, external_port = stun.get_ip_info(source_port=local_port)
-    print(f"I am {external_ip}:{external_port}")
     return external_ip, external_port
 
 
 async def call_randy(external_ip: str, external_port: int) -> Any:
     ws = await websockets.connect(RANDY)
     await ws.send(json.dumps({"ip": external_ip, "port": external_port}))
-    print("Sent info to Randy, waiting for peer...")
     return ws
 
 async def wait_for_boop_signal(ws: Any) -> Booper:
     # We will eventually get booped
     message = await ws.recv()
-    print(f"Got message from Randy: {message}")
     other_booper: Booper = json.loads(str(message))
-    print(f"Peer is {other_booper['ip']}:{other_booper['port']}")
     return other_booper
 
 async def give_boops(sock: socket.socket) -> None:
@@ -60,9 +56,7 @@ async def get_boops(sock: socket.socket) -> None:
         print(data)
 
 def connect_to_other_booper(sock: socket.socket, other_booper: Booper) -> None:
-    print(f"Connecting to {other_booper['ip']}:{other_booper['port']}...")
     sock.connect((other_booper['ip'], other_booper['port']))
-    print("Connected!")
 
 async def commence_booping(sock: socket.socket, other_booper: Booper) -> None:
     connect_to_other_booper(sock, other_booper)
