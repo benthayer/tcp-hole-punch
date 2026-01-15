@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 # Step 1: Gather booping materials
 # Step 2: Identity crisis
