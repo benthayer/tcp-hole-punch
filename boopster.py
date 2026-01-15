@@ -18,6 +18,7 @@ class Booper(TypedDict):
 def gather_booping_materials() -> tuple[socket.socket, int]:
     # Address family internet, TCP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     # Accept connections from anywhere, get a port
     sock.bind(('0.0.0.0', 0))
     # Our local port, basically irrelevant to anyone but us
@@ -90,8 +91,11 @@ async def main() -> None:
     external_ip, external_port = identity_crisis(sock)  # closes sock
     
     # Rebind to same port for hole punch
+    import time
+    time.sleep(0.1)  # Let the port fully release
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     sock.bind(('0.0.0.0', local_port))
     
     ws = await call_randy(external_ip, external_port)
