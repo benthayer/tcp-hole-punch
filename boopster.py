@@ -25,7 +25,7 @@ def gather_booping_materials() -> tuple[socket.socket, int]:
     local_port = sock.getsockname()[1]
     return sock, local_port
 
-RANDY = "ws://holepunch.apps.benthayer.com/"
+RANDY = "wss://holepunch.apps.benthayer.com/"
 
 def identity_crisis(local_port: int) -> tuple[str, int]:
     _nat_type, external_ip, external_port = stun.get_ip_info(source_port=local_port)
